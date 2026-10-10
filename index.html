@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17365d">
+  <title>Parish Calendar Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">▦</div>
+      <div><h1>Kalender Kegiatan</h1><p>Parish Calendar Dashboard</p></div>
+    </div>
+    <div class="account-area">
+      <span id="account-status" class="status">Belum terhubung</span>
+      <button id="login-button" class="button button-light">Hubungkan Google</button>
+      <button id="logout-button" class="button button-outline" hidden>Putuskan akses</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="intro">
+      <div>
+        <p class="eyebrow">PUSAT AGENDA</p>
+        <h2>Semua kalender dalam satu tempat</h2>
+        <p class="intro-copy">Cari acara, pilih kalender yang ingin dilihat, lalu beralih antara kalender dan daftar agenda.</p>
+      </div>
+      <div class="privacy-note"><span aria-hidden="true">🔒</span><span>Data kalender dimuat setelah Anda memberikan izin Google. Token akses tidak disimpan secara permanen.</span></div>
+    </section>
+
+    <section class="toolbar" aria-label="Kontrol kalender">
+      <label class="searchbox" for="search-input">
+        <span aria-hidden="true">⌕</span>
+        <input id="search-input" type="search" placeholder="Cari judul, lokasi, atau deskripsi..." autocomplete="off" disabled>
+      </label>
+      <div class="view-switch" role="group" aria-label="Tampilan">
+        <button class="view-button active" data-view="dayGridMonth" disabled>Kalender</button>
+        <button class="view-button" data-view="listWeek" disabled>Daftar agenda</button>
+      </div>
+      <button id="refresh-button" class="button button-secondary" disabled>↻ Muat ulang</button>
+    </section>
+
+    <div id="message" class="message" role="status">Hubungkan akun Google untuk memuat kalender yang dapat diakses akun Anda.</div>
+
+    <section class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-heading">
+          <h3>Kalender saya</h3>
+          <button id="toggle-all" class="text-button" disabled>Pilih semua</button>
+        </div>
+        <p class="helper">Centang kalender untuk menampilkan atau menyembunyikan acaranya.</p>
+        <div id="calendar-filters" class="calendar-filters">
+          <p class="muted">Daftar kalender akan muncul setelah login.</p>
+        </div>
+        <div class="legend-note"><span class="legend-dot"></span>Warna membedakan sumber kalender</div>
+      </aside>
+
+      <section class="calendar-panel" aria-label="Kalender dan agenda">
+        <div id="calendar"></div>
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon" aria-hidden="true">▦</div>
+          <h3>Kalender Anda akan tampil di sini</h3>
+          <p>Hubungkan akun Google untuk mulai melihat agenda.</p>
+        </div>
+      </section>
+    </section>
+    <footer><span>Parish Calendar Dashboard</span><span>Read-only · Google Calendar API</span></footer>
+  </main>
+</body>
+</html>
