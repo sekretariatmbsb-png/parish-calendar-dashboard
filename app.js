@@ -50,7 +50,9 @@
     if (!accessToken) throw new Error("Sesi Google tidak aktif. Hubungkan kembali akun Anda.");
     const url = new URL(`${API_ROOT}/${path}`);
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
+      if (value !== undefined && value !== null && value !== "") {
+        url.searchParams.set(key, value);
+      }
     });
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` }
@@ -107,6 +109,7 @@
     );
 
     const color = colorByCalendar.get(calendarInfo.id);
+
     return items
       .filter(e => e.status !== "cancelled" && eventDate(e))
       .map(e => {
@@ -151,6 +154,282 @@
       return url.href;
     } catch {
       return null;
+    }
+  }
+
+  function ensureEventDialog() {
+    let dialog = $("event-detail-dialog");
+    if (dialog) return dialog;
+
+    const styles = document.createElement("style");
+    styles.textContent = `
+      .event-detail-dialog {
+        width: min(560px, calc(100vw - 32px));
+        max-width: none;
+        max-height: min(80vh, 760px);
+        padding: 0;
+        border: 0;
+        border-radius: 16px;
+        color: #18324f;
+        background: #ffffff;
+        box-shadow: 0 24px 80px rgba(12, 31, 56, 0.3);
+      }
+
+      .event-detail-dialog::backdrop {
+        background: rgba(12, 31, 56, 0.58);
+        backdrop-filter: blur(2px);
+      }
+
+      .event-detail-panel {
+        padding: 24px;
+      }
+
+      .event-detail-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .event-detail-kicker {
+        margin: 0 0 6px;
+        color: #2864dc;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .event-detail-title {
+        margin: 0;
+        color: #18324f;
+        font-size: 22px;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+      }
+
+      .event-detail-close-icon {
+        flex: 0 0 auto;
+        width: 36px;
+        height: 36px;
+        border: 0;
+        border-radius: 50%;
+        color: #18324f;
+        background: #eef3fa;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .event-detail-fields {
+        display: grid;
+        gap: 14px;
+      }
+
+      .event-detail-row {
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e6ebf2;
+      }
+
+      .event-detail-label {
+        display: block;
+        margin-bottom: 4px;
+        color: #68788e;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .event-detail-value {
+        color: #18324f;
+        font-size: 14px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+
+      .event-detail-description {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .event-detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .event-detail-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 9px 14px;
+        border: 1px solid #d6dfeb;
+        border-radius: 9px;
+        color: #18324f;
+        background: #ffffff;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .event-detail-button-primary {
+        border-color: #183f70;
+        color: #ffffff;
+        background: #183f70;
+      }
+
+      @media (max-width: 480px) {
+        .event-detail-panel {
+          padding: 20px;
+        }
+
+        .event-detail-title {
+          font-size: 19px;
+        }
+      }
+    `;
+    document.head.append(styles);
+
+    dialog = document.createElement("dialog");
+    dialog.id = "event-detail-dialog";
+    dialog.className = "event-detail-dialog";
+    dialog.setAttribute("aria-labelledby", "event-detail-title");
+    dialog.innerHTML = `
+      <div class="event-detail-panel">
+        <header class="event-detail-header">
+          <div>
+            <p class="event-detail-kicker">Detail kegiatan</p>
+            <h2 class="event-detail-title" id="event-detail-title"></h2>
+          </div>
+          <button
+            class="event-detail-close-icon"
+            type="button"
+            data-event-dialog-close
+            aria-label="Tutup detail"
+          >×</button>
+        </header>
+
+        <div class="event-detail-fields">
+          <div class="event-detail-row">
+            <span class="event-detail-label">Kalender</span>
+            <div class="event-detail-value" id="event-detail-calendar"></div>
+          </div>
+
+          <div class="event-detail-row">
+            <span class="event-detail-label">Waktu</span>
+            <div class="event-detail-value" id="event-detail-time"></div>
+          </div>
+
+          <div class="event-detail-row" id="event-detail-location-row" hidden>
+            <span class="event-detail-label">Lokasi</span>
+            <div class="event-detail-value" id="event-detail-location"></div>
+          </div>
+
+          <div class="event-detail-row" id="event-detail-organizer-row" hidden>
+            <span class="event-detail-label">Penyelenggara</span>
+            <div class="event-detail-value" id="event-detail-organizer"></div>
+          </div>
+
+          <div class="event-detail-row" id="event-detail-description-row" hidden>
+            <span class="event-detail-label">Deskripsi</span>
+            <div
+              class="event-detail-value event-detail-description"
+              id="event-detail-description"
+            ></div>
+          </div>
+        </div>
+
+        <footer class="event-detail-actions">
+          <a
+            class="event-detail-button event-detail-button-primary"
+            id="event-detail-google-link"
+            target="_blank"
+            rel="noopener noreferrer"
+            hidden
+          >Buka di Google Calendar</a>
+          <button
+            class="event-detail-button"
+            type="button"
+            data-event-dialog-close
+          >Tutup</button>
+        </footer>
+      </div>
+    `;
+
+    document.body.append(dialog);
+
+    dialog.querySelectorAll("[data-event-dialog-close]").forEach(button => {
+      button.addEventListener("click", () => dialog.close());
+    });
+
+    dialog.addEventListener("click", event => {
+      if (event.target === dialog) dialog.close();
+    });
+
+    return dialog;
+  }
+
+  function formatEventTime(event) {
+    if (!event.start) return "Waktu tidak tersedia";
+
+    const formatDate = date => date.toLocaleString(
+      "id-ID",
+      event.allDay
+        ? { dateStyle: "full" }
+        : { dateStyle: "full", timeStyle: "short" }
+    );
+
+    if (event.allDay || !event.end) {
+      return formatDate(event.start);
+    }
+
+    return `${formatDate(event.start)} sampai ${formatDate(event.end)}`;
+  }
+
+  function showEventDetails(info) {
+    // Prevent browser or FullCalendar fallback navigation such as /undefined.
+    info.jsEvent.preventDefault();
+
+    const event = info.event;
+    const details = event.extendedProps || {};
+    const dialog = ensureEventDialog();
+
+    dialog.querySelector("#event-detail-title").textContent = event.title || "(Tanpa judul)";
+    dialog.querySelector("#event-detail-calendar").textContent =
+      details.calendarName || "Tidak diketahui";
+    dialog.querySelector("#event-detail-time").textContent = formatEventTime(event);
+
+    const locationRow = dialog.querySelector("#event-detail-location-row");
+    const locationValue = dialog.querySelector("#event-detail-location");
+    locationValue.textContent = details.location || "";
+    locationRow.hidden = !details.location;
+
+    const organizerRow = dialog.querySelector("#event-detail-organizer-row");
+    const organizerValue = dialog.querySelector("#event-detail-organizer");
+    organizerValue.textContent = details.organizer || "";
+    organizerRow.hidden = !details.organizer;
+
+    const descriptionRow = dialog.querySelector("#event-detail-description-row");
+    const descriptionValue = dialog.querySelector("#event-detail-description");
+    descriptionValue.textContent = details.description || "";
+    descriptionRow.hidden = !details.description;
+
+    const googleLink = dialog.querySelector("#event-detail-google-link");
+    if (event.url) {
+      googleLink.href = event.url;
+      googleLink.hidden = false;
+    } else {
+      googleLink.removeAttribute("href");
+      googleLink.hidden = true;
+    }
+
+    if (!dialog.open) {
+      dialog.showModal();
     }
   }
 
@@ -212,24 +491,37 @@
     refreshButton.disabled = true;
     try {
       calendars = await loadCalendars();
-      colorByCalendar = new Map(calendars.map((c, i) => [c.id, c.backgroundColor || COLORS[i % COLORS.length]]));
+      colorByCalendar = new Map(
+        calendars.map((c, i) => [c.id, c.backgroundColor || COLORS[i % COLORS.length]])
+      );
       renderFilters();
 
       const settled = await Promise.allSettled(calendars.map(loadEvents));
       allEvents = [];
       const failures = [];
       settled.forEach((result, index) => {
-        if (result.status === "fulfilled") allEvents.push(...result.value);
-        else failures.push(`${calendars[index].summary || calendars[index].id}: ${result.reason.message}`);
+        if (result.status === "fulfilled") {
+          allEvents.push(...result.value);
+        } else {
+          failures.push(
+            `${calendars[index].summary || calendars[index].id}: ${result.reason.message}`
+          );
+        }
       });
 
       allEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
       applyFilters();
 
       if (failures.length) {
-        showMessage(`Data berhasil dimuat, tetapi ${failures.length} kalender tidak dapat dibaca. ${failures.slice(0, 2).join(" | ")}`, "error");
+        showMessage(
+          `Data berhasil dimuat, tetapi ${failures.length} kalender tidak dapat dibaca. ${failures.slice(0, 2).join(" | ")}`,
+          "error"
+        );
       } else if (!calendars.length) {
-        showMessage("Tidak ditemukan kalender yang dapat dibaca. Pastikan akun memiliki kalender atau akses berbagi yang sesuai.", "error");
+        showMessage(
+          "Tidak ditemukan kalender yang dapat dibaca. Pastikan akun memiliki kalender atau akses berbagi yang sesuai.",
+          "error"
+        );
       }
     } catch (error) {
       showMessage(error.message || "Terjadi kesalahan saat memuat kalender.", "error");
@@ -257,27 +549,16 @@
         center: "title",
         right: ""
       },
-      buttonText: { today: "Hari ini", month: "Bulan", week: "Minggu", day: "Hari", list: "Agenda" },
+      buttonText: {
+        today: "Hari ini",
+        month: "Bulan",
+        week: "Minggu",
+        day: "Hari",
+        list: "Agenda"
+      },
       eventTimeFormat: { hour: "2-digit", minute: "2-digit", hour12: false },
       eventClick(info) {
-        // Prevent FullCalendar/browser fallback navigation, including /undefined.
-        info.jsEvent.preventDefault();
-
-        const p = info.event.extendedProps || {};
-        const start = info.event.start ? info.event.start.toLocaleString("id-ID") : "";
-        const details = [
-          info.event.title,
-          `Kalender: ${p.calendarName || "-"}`,
-          `Waktu: ${start}`,
-          p.location ? `Lokasi: ${p.location}` : "",
-          p.description ? `\n${p.description}` : ""
-        ].filter(Boolean).join("\n");
-
-        if (info.event.url) {
-          window.open(info.event.url, "_blank", "noopener,noreferrer");
-        } else {
-          alert(details);
-        }
+        showEventDetails(info);
       }
     });
     calendar.render();
@@ -286,7 +567,10 @@
   function initializeOAuth() {
     const clientId = window.APP_CONFIG?.GOOGLE_CLIENT_ID;
     if (!clientId || clientId.includes("GANTI_DENGAN")) {
-      showMessage("Konfigurasi belum selesai: isi GOOGLE_CLIENT_ID di config.js, lalu muat ulang halaman.", "error");
+      showMessage(
+        "Konfigurasi belum selesai: isi GOOGLE_CLIENT_ID di config.js, lalu muat ulang halaman.",
+        "error"
+      );
       loginButton.disabled = true;
       return;
     }
@@ -296,10 +580,11 @@
         setTimeout(waitForGoogle, 150);
         return;
       }
+
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: SCOPE,
-        callback: async (response) => {
+        callback: async response => {
           if (response.error) {
             showMessage(`Google tidak memberikan akses: ${response.error}`, "error");
             return;
@@ -308,12 +593,16 @@
           setConnected(true);
           await refreshData();
         },
-        error_callback: (error) => {
-          showMessage(`Login Google tidak selesai: ${error?.message || error?.type || "coba lagi."}`, "error");
+        error_callback: error => {
+          showMessage(
+            `Login Google tidak selesai: ${error?.message || error?.type || "coba lagi."}`,
+            "error"
+          );
         }
       });
       loginButton.disabled = false;
     };
+
     waitForGoogle();
   }
 
@@ -333,13 +622,17 @@
     calendars = [];
     allEvents = [];
     filtersEl.replaceChildren();
+
     const p = document.createElement("p");
     p.className = "muted";
     p.textContent = "Daftar kalender akan muncul setelah login.";
     filtersEl.append(p);
+
     calendar.removeAllEvents();
     setConnected(false);
-    showMessage("Akses aplikasi diputus. Jika ingin mencabut izin aplikasi sepenuhnya, tinjau akses pihak ketiga di Akun Google.");
+    showMessage(
+      "Akses aplikasi diputus. Jika ingin mencabut izin aplikasi sepenuhnya, tinjau akses pihak ketiga di Akun Google."
+    );
   });
 
   searchInput.addEventListener("input", applyFilters);
@@ -348,14 +641,18 @@
   toggleAllButton.addEventListener("click", () => {
     const inputs = [...filtersEl.querySelectorAll('input[type="checkbox"]')];
     const allChecked = inputs.length > 0 && inputs.every(input => input.checked);
-    inputs.forEach(input => { input.checked = !allChecked; });
+    inputs.forEach(input => {
+      input.checked = !allChecked;
+    });
     toggleAllButton.textContent = allChecked ? "Pilih semua" : "Sembunyikan semua";
     applyFilters();
   });
 
   document.querySelectorAll(".view-button").forEach(button => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".view-button").forEach(b => b.classList.toggle("active", b === button));
+      document.querySelectorAll(".view-button").forEach(b => {
+        b.classList.toggle("active", b === button);
+      });
       currentView = button.dataset.view;
       calendar.changeView(currentView);
     });
