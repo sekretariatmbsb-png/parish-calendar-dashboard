@@ -109,32 +109,49 @@
     const color = colorByCalendar.get(calendarInfo.id);
     return items
       .filter(e => e.status !== "cancelled" && eventDate(e))
-      .map(e => ({
-        id: `${calendarInfo.id}::${e.id}`,
-        title: e.summary || "(Tanpa judul)",
-        start: eventDate(e),
-        end: e.end?.dateTime || e.end?.date || undefined,
-        allDay: Boolean(e.start?.date && !e.start?.dateTime),
-        url: safeGoogleEventUrl(e.htmlLink),
-        backgroundColor: color,
-        borderColor: color,
-        textColor: "#ffffff",
-        extendedProps: {
-          calendarId: calendarInfo.id,
-          calendarName: calendarInfo.summary || calendarInfo.id,
-          location: e.location || "",
-          description: e.description || "",
-          organizer: e.organizer?.displayName || ""
+      .map(e => {
+        const eventUrl = safeGoogleEventUrl(e.htmlLink);
+        const event = {
+          id: `${calendarInfo.id}::${e.id}`,
+          title: e.summary || "(Tanpa judul)",
+          start: eventDate(e),
+          end: e.end?.dateTime || e.end?.date || undefined,
+          allDay: Boolean(e.start?.date && !e.start?.dateTime),
+          backgroundColor: color,
+          borderColor: color,
+          textColor: "#ffffff",
+          extendedProps: {
+            calendarId: calendarInfo.id,
+            calendarName: calendarInfo.summary || calendarInfo.id,
+            location: e.location || "",
+            description: e.description || "",
+            organizer: e.organizer?.displayName || ""
+          }
+        };
+
+        if (eventUrl) {
+          event.url = eventUrl;
         }
-      }));
+
+        return event;
+      });
   }
 
   function safeGoogleEventUrl(value) {
-    if (!value) return undefined;
+    if (typeof value !== "string" || !value.trim()) return null;
+
     try {
       const url = new URL(value);
-      return url.hostname === "calendar.google.com" ? url.href : undefined;
-    } catch { return undefined; }
+      const allowedHosts = ["calendar.google.com", "www.google.com"];
+
+      if (url.protocol !== "https:") return null;
+      if (!allowedHosts.includes(url.hostname)) return null;
+      if (!url.pathname.startsWith("/calendar/")) return null;
+
+      return url.href;
+    } catch {
+      return null;
+    }
   }
 
   function renderFilters() {
@@ -243,6 +260,9 @@
       buttonText: { today: "Hari ini", month: "Bulan", week: "Minggu", day: "Hari", list: "Agenda" },
       eventTimeFormat: { hour: "2-digit", minute: "2-digit", hour12: false },
       eventClick(info) {
+        // Prevent FullCalendar/browser fallback navigation, including /undefined.
+        info.jsEvent.preventDefault();
+
         const p = info.event.extendedProps || {};
         const start = info.event.start ? info.event.start.toLocaleString("id-ID") : "";
         const details = [
@@ -252,8 +272,8 @@
           p.location ? `Lokasi: ${p.location}` : "",
           p.description ? `\n${p.description}` : ""
         ].filter(Boolean).join("\n");
+
         if (info.event.url) {
-          info.jsEvent.preventDefault();
           window.open(info.event.url, "_blank", "noopener,noreferrer");
         } else {
           alert(details);
